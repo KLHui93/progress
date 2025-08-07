@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Progress Tracker</title>
+    <title>Compact Group Progress Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script>
@@ -57,155 +57,395 @@
             .editable:hover {
                 @apply bg-gray-100;
             }
-            /* Significantly improved slider styling */
-            input[type="range"] {
-                @apply h-5 rounded-lg appearance-none cursor-pointer bg-gray-200;
-            }
-            input[type="range"]::-webkit-slider-thumb {
-                @apply appearance-none w-8 h-8 rounded-full bg-primary shadow-md hover:bg-primary/80 transition-all duration-150 cursor-grab active:cursor-grabbing;
-            }
-            input[type="range"]::-moz-range-thumb {
-                @apply w-8 h-8 rounded-full bg-primary shadow-md border-none hover:bg-primary/80 transition-all duration-150 cursor-grab active:cursor-grabbing;
-            }
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
-    <div class="container mx-auto px-4 py-8 max-w-5xl">
-        <header class="mb-10 text-center">
-            <h1 class="text-[clamp(1.8rem,5vw,3rem)] font-bold text-dark mb-3">Group Progress Tracker</h1>
-            <p class="text-gray-600 text-lg">Edit group names, adjust progress, and modify the number of groups</p>
+    <div class="container mx-auto px-3 py-4 max-w-6xl">
+        <header class="mb-4 text-center">
+            <h1 class="text-[clamp(1.4rem,4vw,2rem)] font-bold text-dark mb-1">Group Progress Tracker</h1>
+            <p class="text-gray-600 text-sm">Multiple categories with compact view</p>
         </header>
 
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div class="flex items-center gap-2">
-                    <button id="addGroup" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg">
-                        <i class="fa fa-plus"></i> Add Group
+        <!-- Global Categories Configuration (Collapsible) -->
+        <div class="bg-white rounded-lg shadow-md p-3 mb-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-base font-semibold text-gray-800">Progress Categories</h2>
+                <div class="flex gap-2">
+                    <button id="toggleCategories" class="text-gray-500 hover:text-primary text-sm transition-colors">
+                        <i class="fa fa-chevron-down"></i>
                     </button>
-                    <button id="removeGroup" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg">
-                        <i class="fa fa-minus"></i> Remove Group
+                    <button id="addCategory" class="bg-primary/10 hover:bg-primary/20 text-primary px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors">
+                        <i class="fa fa-plus"></i> Add
+                    </button>
+                    <button id="applyCategories" class="bg-secondary/10 hover:bg-secondary/20 text-secondary px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors">
+                        <i class="fa fa-refresh"></i> Apply
                     </button>
                 </div>
-                <div class="flex items-center gap-3">
-                    <label for="groupCount" class="text-gray-700 font-medium">Number of groups:</label>
-                    <input type="number" id="groupCount" min="1" value="5" 
-                        class="w-16 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+            </div>
+            
+            <div id="categoriesContainer" class="space-y-2 mt-2 hidden">
+                <!-- Categories will be generated here -->
+            </div>
+        </div>
+
+        <!-- Main Groups Tracking Section -->
+        <div class="bg-white rounded-lg shadow-md p-3 mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <button id="addGroup" class="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all">
+                        <i class="fa fa-plus"></i> Add Group
+                    </button>
+                    <button id="removeGroup" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all">
+                        <i class="fa fa-minus"></i> Remove
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="groupCount" class="text-gray-700 text-sm">Groups:</label>
+                    <input type="number" id="groupCount" min="1" value="3" 
+                        class="w-12 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50">
                 </div>
             </div>
 
-            <div id="groupsContainer" class="space-y-4">
+            <div id="groupsContainer" class="space-y-3">
                 <!-- Groups will be generated here -->
             </div>
         </div>
 
-        <div class="text-center text-gray-500 text-sm">
-            <p>Click on group names to edit them. Use the slider or percentage input to adjust progress. Data is automatically saved.</p>
+        <div class="text-center text-gray-500 text-xs">
+            <p>Click names to edit. Enter percentages and press Enter. All data is saved automatically.</p>
         </div>
     </div>
 
     <script>
-        // Load groups from local storage or initialize with empty names
-        let groups = JSON.parse(localStorage.getItem('groupProgressData')) || [
-            { id: 1, name: "", progress: 0 },
-            { id: 2, name: "", progress: 0 },
-            { id: 3, name: "", progress: 0 },
-            { id: 4, name: "", progress: 0 },
-            { id: 5, name: "", progress: 0 }
-        ];
+        // Load data from local storage or initialize with defaults
+        let appData = JSON.parse(localStorage.getItem('compactGroupProgress')) || {
+            globalCategories: [
+                { id: 1, name: "Planning" },
+                { id: 2, name: "Execution" },
+                { id: 3, name: "Review" }
+            ],
+            groups: [
+                { 
+                    id: 1, 
+                    name: "", 
+                    categories: [
+                        { id: 1, name: "Planning", value: 0 },
+                        { id: 2, name: "Execution", value: 0 },
+                        { id: 3, name: "Review", value: 0 }
+                    ]
+                },
+                { 
+                    id: 2, 
+                    name: "", 
+                    categories: [
+                        { id: 1, name: "Planning", value: 0 },
+                        { id: 2, name: "Execution", value: 0 },
+                        { id: 3, name: "Review", value: 0 }
+                    ]
+                },
+                { 
+                    id: 3, 
+                    name: "", 
+                    categories: [
+                        { id: 1, name: "Planning", value: 0 },
+                        { id: 2, name: "Execution", value: 0 },
+                        { id: 3, name: "Review", value: 0 }
+                    ]
+                }
+            ]
+        };
+
+        // Extract data
+        let { globalCategories, groups } = appData;
 
         // DOM Elements
         const groupsContainer = document.getElementById('groupsContainer');
+        const categoriesContainer = document.getElementById('categoriesContainer');
         const groupCountInput = document.getElementById('groupCount');
         const addGroupBtn = document.getElementById('addGroup');
         const removeGroupBtn = document.getElementById('removeGroup');
+        const addCategoryBtn = document.getElementById('addCategory');
+        const applyCategoriesBtn = document.getElementById('applyCategories');
+        const toggleCategoriesBtn = document.getElementById('toggleCategories');
 
         // Initialize the tracker
+        renderGlobalCategories();
         renderGroups();
-        // Set initial count based on loaded data
         groupCountInput.value = groups.length;
+
+        // Toggle categories visibility
+        toggleCategoriesBtn.addEventListener('click', () => {
+            categoriesContainer.classList.toggle('hidden');
+            const icon = toggleCategoriesBtn.querySelector('i');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        });
 
         // Event Listeners
         groupCountInput.addEventListener('change', updateGroupCount);
         addGroupBtn.addEventListener('click', addGroup);
         removeGroupBtn.addEventListener('click', removeGroup);
+        addCategoryBtn.addEventListener('click', addGlobalCategory);
+        applyCategoriesBtn.addEventListener('click', applyGlobalCategoriesToAllGroups);
 
         // Save data to local storage
         function saveToLocalStorage() {
-            localStorage.setItem('groupProgressData', JSON.stringify(groups));
+            localStorage.setItem('compactGroupProgress', JSON.stringify({ globalCategories, groups }));
+        }
+
+        // Render global categories (configuration)
+        function renderGlobalCategories() {
+            categoriesContainer.innerHTML = '';
+            
+            globalCategories.forEach(category => {
+                const categoryElement = createGlobalCategoryElement(category);
+                categoriesContainer.appendChild(categoryElement);
+            });
+        }
+
+        // Create a single global category element
+        function createGlobalCategoryElement(category) {
+            const div = document.createElement('div');
+            div.className = 'category-item flex items-center gap-2 p-2 bg-gray-50 rounded';
+            div.dataset.categoryId = category.id;
+            
+            div.innerHTML = `
+                <div class="flex-1 min-w-[150px]">
+                    <div class="editable category-name text-sm font-medium text-gray-800 cursor-text" 
+                         data-category-id="${category.id}">${category.name}</div>
+                </div>
+                <button class="delete-category text-red-400 hover:text-red-600 p-1 transition-colors"
+                        data-category-id="${category.id}">
+                    <i class="fa fa-trash-o"></i>
+                </button>
+            `;
+            
+            // Add event listeners
+            setupGlobalCategoryEventListeners(div, category.id);
+            
+            return div;
+        }
+
+        // Setup event listeners for a global category element
+        function setupGlobalCategoryEventListeners(categoryElement, categoryId) {
+            // Category name editing
+            const nameElement = categoryElement.querySelector('.category-name');
+            nameElement.addEventListener('click', () => makeGlobalCategoryNameEditable(nameElement, categoryId));
+            
+            // Delete category
+            const deleteBtn = categoryElement.querySelector('.delete-category');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (globalCategories.length > 1) { // Ensure at least one category remains
+                    deleteGlobalCategory(categoryId);
+                }
+            });
+        }
+
+        // Make global category name editable
+        function makeGlobalCategoryNameEditable(element, categoryId) {
+            const currentName = element.textContent.trim();
+            
+            element.innerHTML = `<input type="text" value="${currentName}" 
+                class="w-full p-1 border-b border-primary text-sm focus:outline-none focus:border-primary/70">`;
+            
+            const input = element.querySelector('input');
+            input.focus();
+            
+            // Save on blur or enter key
+            input.addEventListener('blur', () => saveGlobalCategoryName(element, categoryId, input.value));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveGlobalCategoryName(element, categoryId, input.value);
+                }
+            });
+        }
+
+        // Save edited global category name
+        function saveGlobalCategoryName(element, categoryId, newName) {
+            const trimmedName = newName.trim() || `Category ${categoryId}`;
+            const category = globalCategories.find(c => c.id === categoryId);
+            
+            if (category) {
+                category.name = trimmedName;
+                element.textContent = trimmedName;
+                
+                // Update all group categories with the same ID
+                groups.forEach(group => {
+                    const groupCategory = group.categories.find(c => c.id === categoryId);
+                    if (groupCategory) {
+                        groupCategory.name = trimmedName;
+                    }
+                });
+                
+                renderGroups();
+                saveToLocalStorage();
+            }
+        }
+
+        // Add new global category
+        function addGlobalCategory() {
+            const newId = Math.max(...globalCategories.map(c => c.id), 0) + 1;
+            globalCategories.push({
+                id: newId,
+                name: `New Cat ${newId}`
+            });
+            
+            renderGlobalCategories();
+            saveToLocalStorage();
+        }
+
+        // Delete global category
+        function deleteGlobalCategory(categoryId) {
+            // Remove from global categories
+            globalCategories = globalCategories.filter(c => c.id !== categoryId);
+            
+            // Remove from all groups
+            groups.forEach(group => {
+                group.categories = group.categories.filter(c => c.id !== categoryId);
+            });
+            
+            renderGlobalCategories();
+            renderGroups();
+            saveToLocalStorage();
+        }
+
+        // Apply global categories to all groups
+        function applyGlobalCategoriesToAllGroups() {
+            groups.forEach(group => {
+                // Create a map of existing categories for quick lookup
+                const existingCategoriesMap = {};
+                group.categories.forEach(cat => {
+                    existingCategoriesMap[cat.id] = cat;
+                });
+                
+                // Create new categories array based on global definitions
+                const newCategories = globalCategories.map(globalCat => {
+                    // If category exists, keep its value but update name
+                    if (existingCategoriesMap[globalCat.id]) {
+                        return {
+                            ...existingCategoriesMap[globalCat.id],
+                            name: globalCat.name
+                        };
+                    }
+                    // If new category, start with 0%
+                    return {
+                        id: globalCat.id,
+                        name: globalCat.name,
+                        value: 0
+                    };
+                });
+                
+                group.categories = newCategories;
+            });
+            
+            renderGroups();
+            saveToLocalStorage();
         }
 
         // Render all groups
         function renderGroups() {
-            // Clear container
             groupsContainer.innerHTML = '';
             
-            // Sort groups by progress (descending) for ranking
-            const sortedGroups = [...groups].sort((a, b) => b.progress - a.progress);
+            // Sort groups by total progress (descending) for ranking
+            const sortedGroups = [...groups].sort((a, b) => {
+                const totalA = calculateGroupTotalProgress(a);
+                const totalB = calculateGroupTotalProgress(b);
+                return totalB - totalA;
+            });
             
-            // Create and append each group element
             sortedGroups.forEach((group, index) => {
                 const groupElement = createGroupElement(group, index + 1);
                 groupsContainer.appendChild(groupElement);
             });
         }
 
+        // Calculate total progress for a group (average of all categories)
+        function calculateGroupTotalProgress(group) {
+            if (group.categories.length === 0) return 0;
+            const sum = group.categories.reduce((total, cat) => total + cat.value, 0);
+            return Math.round(sum / group.categories.length);
+        }
+
         // Create a single group element
         function createGroupElement(group, rank) {
             const div = document.createElement('div');
-            div.className = 'group-item bg-gray-50 rounded-lg p-4 hover:shadow-md transition-all duration-300';
+            div.className = 'group-item bg-gray-50 rounded p-3 hover:shadow-sm transition-all duration-300';
             div.dataset.groupId = group.id;
             
             // Determine rank badge style
             let rankBadgeClass = '';
-            if (rank === 1) rankBadgeClass = 'bg-yellow-500 w-8 h-8 text-lg';
-            else if (rank === 2) rankBadgeClass = 'bg-gray-400 w-7 h-7';
-            else if (rank === 3) rankBadgeClass = 'bg-amber-700 w-7 h-7';
-            else rankBadgeClass = 'bg-gray-600 w-6 h-6';
+            if (rank === 1) rankBadgeClass = 'bg-yellow-500 w-6 h-6 text-xs';
+            else if (rank === 2) rankBadgeClass = 'bg-gray-400 w-5 h-5 text-xs';
+            else if (rank === 3) rankBadgeClass = 'bg-amber-700 w-5 h-5 text-xs';
+            else rankBadgeClass = 'bg-gray-600 w-5 h-5 text-xs';
             
             // Show placeholder text if name is empty
-            const displayName = group.name || '<span class="text-gray-400 italic">Click to name group</span>';
+            const displayName = group.name || '<span class="text-gray-400 italic text-sm">Click to name</span>';
+            
+            // Calculate total progress
+            const totalProgress = calculateGroupTotalProgress(group);
             
             div.innerHTML = `
-                <div class="flex flex-col md:flex-row md:items-center gap-4">
-                    <!-- Rank -->
-                    <div class="rank-badge ${rankBadgeClass}">${rank}</div>
-                    
-                    <!-- Group Name -->
-                    <div class="flex-1">
-                        <div class="editable group-name font-semibold text-lg text-gray-800 cursor-text min-h-[1.5rem]" 
-                             data-group-id="${group.id}">${displayName}</div>
+                <div class="flex flex-col">
+                    <!-- Group Header with Rank and Name -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="rank-badge ${rankBadgeClass}">${rank}</div>
+                            <div class="editable group-name font-semibold text-base text-gray-800 cursor-text" 
+                                 data-group-id="${group.id}">${displayName}</div>
+                        </div>
                         
-                        <!-- Progress Bar -->
-                        <div class="mt-2">
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-gray-600">Progress</span>
-                                <span class="font-medium progress-percentage">${group.progress}%</span>
-                            </div>
-                            <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
-                                <div class="progress-bar h-full progress-shine rounded-full transition-all duration-500 ease-out"
-                                     style="width: ${group.progress}%; background-color: ${getProgressColor(group.progress)}">
-                                </div>
-                            </div>
+                        <!-- Total Progress -->
+                        <div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-full">
+                            <span class="text-gray-700 text-xs font-medium">Total:</span>
+                            <span class="font-bold text-sm ${getProgressColorClass(totalProgress)}">${totalProgress}%</span>
                         </div>
                     </div>
                     
-                    <!-- Progress Controls: Slider + Text Input -->
-                    <div class="w-full md:w-72 flex items-center gap-4">
-                        <input type="range" min="0" max="100" value="${group.progress}" 
-                               class="progress-slider flex-1 accent-primary"
-                               data-group-id="${group.id}">
-                        <div class="relative w-20">
-                            <input type="number" min="0" max="100" value="${group.progress}" 
-                                   class="progress-input w-full border border-gray-300 rounded-lg px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                   data-group-id="${group.id}">
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
-                        </div>
+                    <!-- Category Progress Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[400px] text-xs">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-1.5 px-2 text-gray-600 font-medium">Category</th>
+                                    <th class="text-right py-1.5 px-2 text-gray-600 font-medium">Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.categories.map(cat => `
+                                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                        <td class="py-1.5 px-2">
+                                            <div class="editable category-name cursor-text" 
+                                                 data-group-id="${group.id}" 
+                                                 data-category-id="${cat.id}">${cat.name}</div>
+                                        </td>
+                                        <td class="py-1.5 px-2 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <input type="number" min="0" max="100" value="${cat.value}" 
+                                                       class="progress-input w-16 border border-gray-300 rounded px-2 py-1 text-center text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                                       data-group-id="${group.id}"
+                                                       data-category-id="${cat.id}">
+                                                <span class="text-gray-500">%</span>
+                                            </div>
+                                            <!-- Progress Bar -->
+                                            <div class="h-1.5 mt-1 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="h-full progress-shine rounded-full transition-all duration-500 ease-out"
+                                                     style="width: ${cat.value}%; background-color: ${getProgressColor(cat.value)}">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             `;
             
-            // Add event listeners to the created elements
+            // Add event listeners
             setupGroupEventListeners(div, group.id);
             
             return div;
@@ -213,79 +453,46 @@
 
         // Setup event listeners for a group element
         function setupGroupEventListeners(groupElement, groupId) {
-            // Progress slider with improved interaction
-            const slider = groupElement.querySelector('.progress-slider');
-            let isDragging = false;
-            
-            // Improved slider handling with mousedown/up for better dragging feel
-            slider.addEventListener('mousedown', () => {
-                isDragging = true;
-                slider.classList.add('scale-105');
-                document.body.classList.add('select-none'); // Prevent text selection during drag
-            });
-            
-            // Update on input (continuous dragging)
-            slider.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                updateGroupProgress(groupId, value);
-                // Sync with input box
-                groupElement.querySelector('.progress-input').value = value;
-            });
-            
-            // Mouse up anywhere to stop dragging
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    slider.classList.remove('scale-105');
-                    document.body.classList.remove('select-none');
-                }
-            });
-            
-            // Progress text input - only update on blur or enter key (not automatically)
-            const input = groupElement.querySelector('.progress-input');
-            
-            // Only update when user finishes editing (no auto-update during typing)
-            input.addEventListener('blur', () => {
-                updateInputValue(input, groupId);
-            });
-            
-            // Update on Enter key press
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    updateInputValue(input, groupId);
-                    input.blur(); // Remove focus after Enter
-                }
-            });
-            
             // Editable group name
             const nameElement = groupElement.querySelector('.group-name');
             nameElement.addEventListener('click', () => makeGroupNameEditable(nameElement, groupId));
-        }
-        
-        // Handle input value update with validation
-        function updateInputValue(input, groupId) {
-            // Validate input
-            let value = parseInt(input.value) || 0;
-            value = Math.max(0, Math.min(100, value)); // Clamp between 0-100
-            input.value = value;
-            updateGroupProgress(groupId, value);
-            // Sync with slider
-            document.querySelector(`.progress-slider[data-group-id="${groupId}"]`).value = value;
+            
+            // Category name editing
+            const categoryNameElements = groupElement.querySelectorAll('.category-name[data-category-id]');
+            categoryNameElements.forEach(element => {
+                const categoryId = parseInt(element.dataset.categoryId);
+                element.addEventListener('click', () => makeGroupCategoryNameEditable(element, groupId, categoryId));
+            });
+            
+            // Progress inputs
+            const progressInputs = groupElement.querySelectorAll('.progress-input');
+            progressInputs.forEach(input => {
+                const categoryId = parseInt(input.dataset.categoryId);
+                
+                input.addEventListener('blur', () => {
+                    updateGroupCategoryProgress(groupId, categoryId, parseInt(input.value) || 0);
+                });
+                
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        updateGroupCategoryProgress(groupId, categoryId, parseInt(input.value) || 0);
+                        input.blur();
+                    }
+                });
+            });
         }
 
         // Make group name editable
         function makeGroupNameEditable(element, groupId) {
-            // Get current name, removing placeholder text if present
-            const currentName = element.textContent.trim() === 'Click to name group' ? '' : element.textContent.trim();
+            const currentName = element.textContent.trim() === 'Click to name' ? '' : element.textContent.trim();
             
             element.innerHTML = `<input type="text" value="${currentName}" 
-                class="w-full p-1 border-b border-primary focus:outline-none focus:border-primary/70">`;
+                class="w-full p-1 border-b border-primary text-sm focus:outline-none focus:border-primary/70">`;
             
             const input = element.querySelector('input');
             input.focus();
             
-            // Save on blur or enter key
             input.addEventListener('blur', () => saveGroupName(element, groupId, input.value));
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -302,52 +509,101 @@
             
             if (group) {
                 group.name = trimmedName;
-                element.innerHTML = trimmedName || '<span class="text-gray-400 italic">Click to name group</span>';
-                saveToLocalStorage(); // Save to local storage
+                element.innerHTML = trimmedName || '<span class="text-gray-400 italic text-sm">Click to name</span>';
+                saveToLocalStorage();
             }
         }
 
-        // Update group progress (independent for each group)
-        function updateGroupProgress(groupId, progress) {
+        // Make group category name editable
+        function makeGroupCategoryNameEditable(element, groupId, categoryId) {
+            const currentName = element.textContent.trim();
+            
+            element.innerHTML = `<input type="text" value="${currentName}" 
+                class="w-full p-1 border-b border-primary text-sm focus:outline-none focus:border-primary/70">`;
+            
+            const input = element.querySelector('input');
+            input.focus();
+            
+            input.addEventListener('blur', () => saveGroupCategoryName(element, groupId, categoryId, input.value));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveGroupCategoryName(element, groupId, categoryId, input.value);
+                }
+            });
+        }
+
+        // Save edited group category name
+        function saveGroupCategoryName(element, groupId, categoryId, newName) {
+            const trimmedName = newName.trim() || `Cat ${categoryId}`;
             const group = groups.find(g => g.id === groupId);
+            
             if (group) {
-                // Update only this group's progress
-                group.progress = progress;
-                
-                // Update UI
-                const groupElement = document.querySelector(`.group-item[data-group-id="${groupId}"]`);
-                const progressBar = groupElement.querySelector('.progress-bar');
-                const progressText = groupElement.querySelector('.progress-percentage');
-                
-                progressBar.style.width = `${progress}%`;
-                progressBar.style.backgroundColor = getProgressColor(progress);
-                progressText.textContent = `${progress}%`;
-                
-                // Re-render to update rankings
-                renderGroups();
-                saveToLocalStorage(); // Save to local storage
+                const category = group.categories.find(c => c.id === categoryId);
+                if (category) {
+                    category.name = trimmedName;
+                    element.textContent = trimmedName;
+                    saveToLocalStorage();
+                }
             }
         }
 
-        // Get appropriate color based on progress
+        // Update group category progress
+        function updateGroupCategoryProgress(groupId, categoryId, progress) {
+            progress = Math.max(0, Math.min(100, progress)); // Clamp between 0-100
+            const group = groups.find(g => g.id === groupId);
+            
+            if (group) {
+                const category = group.categories.find(c => c.id === categoryId);
+                if (category) {
+                    category.value = progress;
+                    
+                    // Update input value if it's different
+                    const input = document.querySelector(`.progress-input[data-group-id="${groupId}"][data-category-id="${categoryId}"]`);
+                    if (input && parseInt(input.value) !== progress) {
+                        input.value = progress;
+                    }
+                    
+                    renderGroups(); // Re-render to update totals and rankings
+                    saveToLocalStorage();
+                }
+            }
+        }
+
+        // Get color based on progress
         function getProgressColor(progress) {
             if (progress < 30) return '#ef4444'; // Red
             if (progress < 60) return '#f59e0b'; // Amber
             return '#10b981'; // Green
         }
 
-        // Add a new group with empty name
+        // Get color class for text based on progress
+        function getProgressColorClass(progress) {
+            if (progress < 30) return 'text-red-500';
+            if (progress < 60) return 'text-amber-500';
+            return 'text-green-500';
+        }
+
+        // Add a new group
         function addGroup() {
             const newId = Math.max(...groups.map(g => g.id), 0) + 1;
+            
+            // Create categories based on global definitions
+            const groupCategories = globalCategories.map(cat => ({
+                id: cat.id,
+                name: cat.name,
+                value: 0
+            }));
+            
             groups.push({
                 id: newId,
-                name: "", // Empty default name
-                progress: 0
+                name: "",
+                categories: groupCategories
             });
             
             groupCountInput.value = groups.length;
             renderGroups();
-            saveToLocalStorage(); // Save to local storage
+            saveToLocalStorage();
         }
 
         // Remove last group
@@ -356,7 +612,7 @@
                 groups.pop();
                 groupCountInput.value = groups.length;
                 renderGroups();
-                saveToLocalStorage(); // Save to local storage
+                saveToLocalStorage();
             }
         }
 
@@ -366,15 +622,13 @@
             const currentCount = groups.length;
             
             if (newCount > currentCount) {
-                // Add groups with empty names
                 for (let i = currentCount; i < newCount; i++) {
                     addGroup();
                 }
             } else if (newCount < currentCount) {
-                // Remove groups
                 groups = groups.slice(0, newCount);
                 renderGroups();
-                saveToLocalStorage(); // Save to local storage
+                saveToLocalStorage();
             }
         }
     </script>
